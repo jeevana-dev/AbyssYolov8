@@ -1,0 +1,2055 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Smart Traffic Control | Command Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+  :root {
+    --neon-blue: #00d4ff;
+    --neon-cyan: #00ffea;
+    --dark-navy: #020b18;
+    --mid-navy: #051428;
+    --panel-bg: rgba(3,15,35,0.95);
+    --border: rgba(0,212,255,0.2);
+    --border-bright: rgba(0,212,255,0.5);
+    --red: #ff3333;
+    --green: #00ff88;
+    --yellow: #ffcc00;
+    --blue-signal: #4488ff;
+    --gold: #ffd700;
+    --sidebar-w: 220px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Rajdhani', sans-serif;
+    background: var(--dark-navy);
+    color: #e0f4ff;
+    min-height: 100vh;
+    overflow: hidden;
+    display: flex;
+  }
+
+  /* Grid background */
+  body::before {
+    content: '';
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background-image: 
+      linear-gradient(rgba(0,212,255,0.02) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,212,255,0.02) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ===== SIDEBAR ===== */
+  .sidebar {
+    width: var(--sidebar-w);
+    background: rgba(2,10,25,0.98);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    left: 0; top: 0;
+    height: 100vh;
+    z-index: 100;
+    padding: 0;
+  }
+
+  .sidebar-logo {
+    padding: 20px 16px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .logo-icon {
+    width: 40px; height: 40px;
+    border-radius: 50%;
+    background: radial-gradient(circle, #0a2a4a, #020b18);
+    border: 1px solid var(--neon-blue);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 0 12px rgba(0,212,255,0.4);
+    flex-shrink: 0;
+  }
+
+  .logo-text {
+    font-family: 'Orbitron', monospace;
+    font-size: 9px;
+    font-weight: 700;
+    color: var(--neon-blue);
+    letter-spacing: 1px;
+    line-height: 1.4;
+  }
+
+  .nav-section {
+    padding: 20px 0;
+    flex: 1;
+    overflow-y: auto;
+  }
+
+  .nav-label {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 9px;
+    color: rgba(0,212,255,0.35);
+    letter-spacing: 3px;
+    padding: 0 16px 8px;
+    text-transform: uppercase;
+  }
+
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    cursor: pointer;
+    border-left: 3px solid transparent;
+    transition: all 0.2s;
+    color: rgba(255,255,255,0.5);
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    text-decoration: none;
+  }
+
+  .nav-item:hover {
+    background: rgba(0,212,255,0.05);
+    color: var(--neon-blue);
+    border-left-color: var(--neon-blue);
+  }
+
+  .nav-item.active {
+    background: rgba(0,212,255,0.08);
+    color: var(--neon-blue);
+    border-left-color: var(--neon-blue);
+  }
+
+  .nav-item svg { width: 18px; height: 18px; flex-shrink: 0; }
+
+  .sidebar-bottom {
+    padding: 16px;
+    border-top: 1px solid var(--border);
+  }
+
+  .officer-mini {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px;
+    background: rgba(0,212,255,0.05);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .officer-mini:hover { background: rgba(0,212,255,0.1); border-color: var(--neon-blue); }
+
+  .officer-avatar {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #003366, #006699);
+    border: 1px solid var(--neon-blue);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Orbitron', monospace;
+    font-size: 12px;
+    color: var(--neon-blue);
+    font-weight: 700;
+  }
+
+  .officer-info { flex: 1; min-width: 0; }
+  .officer-name-mini { font-size: 12px; font-weight: 700; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .officer-rank { font-family: 'Share Tech Mono', monospace; font-size: 9px; color: rgba(0,212,255,0.6); }
+
+  /* ===== MAIN AREA ===== */
+  .main-area {
+    margin-left: var(--sidebar-w);
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* ===== TOPBAR ===== */
+  .topbar {
+    height: 60px;
+    background: rgba(2,10,25,0.98);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 24px;
+    gap: 20px;
+    flex-shrink: 0;
+  }
+
+  .topbar-title {
+    font-family: 'Orbitron', monospace;
+    font-size: 14px;
+    font-weight: 900;
+    color: #fff;
+    letter-spacing: 2px;
+    flex: 1;
+  }
+
+  .topbar-title span { color: var(--neon-blue); }
+
+  .topbar-time {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 13px;
+    color: var(--neon-blue);
+    letter-spacing: 2px;
+  }
+
+  .topbar-status {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    color: var(--green);
+    letter-spacing: 1px;
+  }
+
+  .status-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--green);
+    animation: pulse 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; box-shadow: 0 0 6px var(--green); }
+    50% { opacity: 0.5; box-shadow: 0 0 2px var(--green); }
+  }
+
+  .topbar-icons {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+  }
+
+  .icon-btn {
+    color: rgba(255,255,255,0.5);
+    cursor: pointer;
+    transition: color 0.2s;
+    position: relative;
+  }
+
+  .icon-btn:hover { color: var(--neon-blue); }
+
+  .notif-badge {
+    position: absolute;
+    top: -4px; right: -4px;
+    width: 14px; height: 14px;
+    background: var(--red);
+    border-radius: 50%;
+    font-size: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-weight: 700;
+  }
+
+  /* ===== CONTENT ===== */
+  .content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px 20px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+
+  /* ===== PAGES ===== */
+  .page { display: none; }
+  .page.active { display: block; }
+
+  /* ===== PANEL ===== */
+  .panel {
+    background: var(--panel-bg);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .panel::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--neon-blue), transparent);
+    opacity: 0.5;
+  }
+
+  .panel-header {
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .panel-title {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    color: var(--neon-blue);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+
+  .panel-dots {
+    color: rgba(255,255,255,0.3);
+    font-size: 16px;
+    cursor: pointer;
+  }
+
+  /* ===== DASHBOARD GRID ===== */
+  .dash-grid {
+    display: grid;
+    grid-template-columns: 280px 1fr 280px;
+    grid-template-rows: auto auto auto;
+    gap: 12px;
+    min-height: calc(100vh - 92px);
+  }
+
+  /* Alert strip */
+  .alert-strip {
+    grid-column: 2;
+    grid-row: 1;
+    background: rgba(10,30,60,0.9);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-height: 44px;
+  }
+
+  .alert-strip.ambulance { border-color: var(--blue-signal); background: rgba(0,40,120,0.6); }
+  .alert-strip.accident { border-color: var(--red); background: rgba(80,0,0,0.5); animation: alertBlink 0.5s ease-in-out infinite; }
+  .alert-strip.bus { border-color: var(--green); background: rgba(0,60,30,0.5); }
+
+  @keyframes alertBlink {
+    0%, 100% { border-color: var(--red); }
+    50% { border-color: rgba(255,51,51,0.3); }
+  }
+
+  .alert-text {
+    font-family: 'Orbitron', monospace;
+    font-size: 12px;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: 2px;
+    flex: 1;
+    text-align: center;
+    text-shadow: 0 0 10px rgba(0,212,255,0.5);
+  }
+
+  /* Signal status panel */
+  .signal-status-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    padding: 10px;
+  }
+
+  .signal-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    background: rgba(0,20,45,0.6);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+  }
+
+  .signal-dir {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    color: rgba(255,255,255,0.7);
+    width: 50px;
+  }
+
+  .mini-signal {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+  }
+
+  .mini-light {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.2);
+    transition: all 0.3s;
+  }
+
+  .mini-light.red.on { background: var(--red); box-shadow: 0 0 6px var(--red); }
+  .mini-light.yellow.on { background: var(--yellow); box-shadow: 0 0 6px var(--yellow); }
+  .mini-light.green.on { background: var(--green); box-shadow: 0 0 6px var(--green); }
+  .mini-light.blue.on { background: var(--blue-signal); box-shadow: 0 0 6px var(--blue-signal); }
+
+  .signal-label {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    color: rgba(0,212,255,0.6);
+    flex: 1;
+  }
+
+  /* ===== CCTV GRID ===== */
+  .cctv-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    padding: 10px;
+  }
+
+  .cam-card {
+    background: #000;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    cursor: pointer;
+    overflow: hidden;
+    position: relative;
+    aspect-ratio: 16/9;
+    transition: border-color 0.2s;
+  }
+
+  .cam-card:hover { border-color: var(--neon-blue); }
+
+  .cam-video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  .cam-overlay {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    padding: 6px 8px;
+    background: linear-gradient(180deg, rgba(0,0,0,0.8), transparent);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .cam-name {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 9px;
+    color: var(--neon-blue);
+    letter-spacing: 1px;
+  }
+
+  .cam-count {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 9px;
+    color: var(--green);
+  }
+
+  .cam-bottom {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    padding: 6px 8px;
+    background: linear-gradient(0deg, rgba(0,0,0,0.8), transparent);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 9px;
+    color: rgba(255,255,255,0.7);
+    letter-spacing: 1px;
+  }
+
+  .detect-badge {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    padding: 4px 10px;
+    border-radius: 2px;
+    font-family: 'Orbitron', monospace;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    display: none;
+    animation: detectPop 0.3s ease-out;
+  }
+
+  @keyframes detectPop {
+    from { transform: translate(-50%, -50%) scale(0.8); opacity: 0; }
+    to { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+  }
+
+  .detect-badge.ambulance { background: rgba(0,100,255,0.85); color: #fff; border: 1px solid #4488ff; display: block; }
+  .detect-badge.accident { background: rgba(255,0,0,0.85); color: #fff; border: 1px solid var(--red); display: block; }
+  .detect-badge.bus { background: rgba(0,150,50,0.85); color: #fff; border: 1px solid var(--green); display: block; }
+
+  /* ===== STAT CARDS ===== */
+  .stat-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+
+  .stat-card {
+    background: var(--panel-bg);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 14px 16px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .stat-card::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 2px;
+  }
+
+  .stat-card.blue::after { background: var(--neon-blue); }
+  .stat-card.green::after { background: var(--green); }
+  .stat-card.red::after { background: var(--red); }
+  .stat-card.gold::after { background: var(--gold); }
+
+  .stat-label {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 9px;
+    color: rgba(255,255,255,0.4);
+    letter-spacing: 2px;
+    margin-bottom: 6px;
+  }
+
+  .stat-value {
+    font-family: 'Orbitron', monospace;
+    font-size: 26px;
+    font-weight: 900;
+    color: #fff;
+    line-height: 1;
+  }
+
+  .stat-sub {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 9px;
+    color: rgba(0,212,255,0.5);
+    margin-top: 4px;
+  }
+
+  /* ===== ALERTS PANEL ===== */
+  .alert-list {
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 200px;
+    overflow-y: auto;
+  }
+
+  .alert-item {
+    padding: 8px 10px;
+    border-radius: 2px;
+    border-left: 3px solid;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.5px;
+    line-height: 1.5;
+    animation: alertIn 0.4s ease-out;
+  }
+
+  @keyframes alertIn {
+    from { opacity: 0; transform: translateX(-10px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+
+  .alert-item.critical { background: rgba(255,0,0,0.1); border-color: var(--red); color: #ff8888; }
+  .alert-item.warning { background: rgba(255,200,0,0.1); border-color: var(--yellow); color: #ffcc00; }
+  .alert-item.info { background: rgba(0,212,255,0.08); border-color: var(--neon-blue); color: rgba(0,212,255,0.8); }
+
+  /* ===== AI LOG TABLE ===== */
+  .log-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+  }
+
+  .log-table th {
+    color: rgba(0,212,255,0.6);
+    letter-spacing: 2px;
+    padding: 8px 12px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+    font-weight: 400;
+  }
+
+  .log-table td {
+    padding: 7px 12px;
+    border-bottom: 1px solid rgba(0,212,255,0.05);
+    color: rgba(255,255,255,0.7);
+  }
+
+  .log-table tr:hover td { background: rgba(0,212,255,0.03); }
+
+  /* ===== VEHICLE COUNT PAGE ===== */
+  #vehicleCountPage .road-map {
+    position: relative;
+    width: 100%;
+    height: 500px;
+    background: #0a1a0a;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    overflow: hidden;
+    margin-bottom: 16px;
+  }
+
+  /* ===== PROFILE PAGE ===== */
+  .profile-grid {
+    display: grid;
+    grid-template-columns: 320px 1fr;
+    gap: 16px;
+  }
+
+  .profile-card {
+    background: var(--panel-bg);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 32px 24px;
+    text-align: center;
+  }
+
+  .profile-avatar {
+    width: 100px; height: 100px;
+    border-radius: 50%;
+    background: radial-gradient(circle, #003366, #020b18);
+    border: 2px solid var(--neon-blue);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 20px;
+    font-family: 'Orbitron', monospace;
+    font-size: 36px;
+    color: var(--neon-blue);
+    font-weight: 700;
+    box-shadow: 0 0 30px rgba(0,212,255,0.3);
+  }
+
+  .profile-name {
+    font-family: 'Orbitron', monospace;
+    font-size: 18px;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 6px;
+    text-shadow: 0 0 10px rgba(0,212,255,0.3);
+  }
+
+  .profile-rank {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    color: var(--neon-blue);
+    letter-spacing: 3px;
+    margin-bottom: 20px;
+  }
+
+  .profile-badge-display {
+    background: rgba(0,212,255,0.08);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 16px;
+    margin-bottom: 16px;
+  }
+
+  .badge-num {
+    font-family: 'Orbitron', monospace;
+    font-size: 24px;
+    font-weight: 900;
+    color: var(--gold);
+    text-shadow: 0 0 15px rgba(255,215,0,0.5);
+  }
+
+  .badge-label {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    color: rgba(0,212,255,0.5);
+    letter-spacing: 2px;
+    margin-top: 4px;
+  }
+
+  .profile-info-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+  }
+
+  .profile-info-label {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    color: rgba(0,212,255,0.5);
+    letter-spacing: 1px;
+  }
+
+  .profile-info-val {
+    color: #fff;
+    font-weight: 600;
+  }
+
+  .status-online {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(0,255,136,0.1);
+    border: 1px solid rgba(0,255,136,0.3);
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    color: var(--green);
+    letter-spacing: 2px;
+    margin-top: 16px;
+  }
+
+  /* ===== MODAL ===== */
+  .modal-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.85);
+    z-index: 1000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .modal-overlay.open { display: flex; }
+
+  .modal-box {
+    background: var(--dark-navy);
+    border: 1px solid var(--border-bright);
+    border-radius: 4px;
+    width: 90vw;
+    max-width: 1100px;
+    max-height: 90vh;
+    overflow: hidden;
+    position: relative;
+    box-shadow: 0 0 60px rgba(0,212,255,0.2);
+    animation: modalIn 0.3s ease-out;
+  }
+
+  @keyframes modalIn {
+    from { opacity: 0; transform: scale(0.95) translateY(20px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
+  }
+
+  .modal-close {
+    position: absolute;
+    top: 12px; right: 16px;
+    background: none;
+    border: 1px solid var(--border);
+    color: rgba(255,255,255,0.6);
+    cursor: pointer;
+    font-size: 18px;
+    width: 32px; height: 32px;
+    border-radius: 2px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+    transition: all 0.2s;
+  }
+
+  .modal-close:hover { border-color: var(--red); color: var(--red); }
+
+  /* LED Display */
+  .led-display {
+    background: #000;
+    border-bottom: 1px solid var(--border);
+    padding: 12px 20px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .led-label {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    color: rgba(0,212,255,0.5);
+    letter-spacing: 2px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .led-text {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: 4px;
+    color: var(--green);
+    text-shadow: 0 0 10px var(--green), 0 0 20px rgba(0,255,136,0.3);
+    white-space: nowrap;
+    animation: ledScroll 15s linear infinite;
+    flex: 1;
+  }
+
+  @keyframes ledScroll {
+    0% { transform: translateX(100%); }
+    100% { transform: translateX(-100%); }
+  }
+
+  .led-text.ambulance { color: #4488ff; text-shadow: 0 0 10px #4488ff, 0 0 20px rgba(68,136,255,0.5); }
+  .led-text.accident { color: var(--red); text-shadow: 0 0 10px var(--red); animation: ledScroll 8s linear infinite; }
+  .led-text.bus { color: #00ff88; text-shadow: 0 0 10px #00ff88; }
+  .led-text.normal { color: var(--green); }
+
+  /* Modal content layout */
+  .modal-content {
+    display: grid;
+    grid-template-columns: 1fr 160px;
+    gap: 0;
+    height: calc(90vh - 90px);
+  }
+
+  .modal-video-wrap {
+    background: #000;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .modal-video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .modal-detection-overlay {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    pointer-events: none;
+  }
+
+  .detection-box {
+    position: absolute;
+    border: 2px solid;
+    padding: 2px 6px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    display: none;
+    animation: detectIn 0.4s ease-out;
+  }
+
+  @keyframes detectIn {
+    from { opacity: 0; transform: scale(0.9); }
+    to { opacity: 1; transform: scale(1); }
+  }
+
+  .detection-box.ambulance { border-color: #4488ff; background: rgba(68,136,255,0.2); color: #fff; display: block; top: 30%; left: 40%; width: 200px; height: 100px; }
+  .detection-box.accident { border-color: var(--red); background: rgba(255,0,0,0.15); color: #fff; display: block; top: 25%; left: 20%; width: 300px; height: 120px; animation: boxBlink 0.3s ease-in-out infinite; }
+  .detection-box.bus { border-color: var(--green); background: rgba(0,255,136,0.1); color: #fff; display: block; top: 35%; left: 15%; width: 250px; height: 100px; }
+  
+  @keyframes boxBlink { 0%, 100% { border-color: var(--red); } 50% { border-color: rgba(255,51,51,0.2); } }
+
+  /* ===== TRAFFIC SIGNAL ===== */
+  .signal-panel {
+    background: #050e1e;
+    border-left: 1px solid var(--border);
+    padding: 16px 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    overflow-y: auto;
+  }
+
+  .signal-panel-title {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 9px;
+    color: rgba(0,212,255,0.5);
+    letter-spacing: 2px;
+    text-align: center;
+  }
+
+  .traffic-signal {
+    background: #111;
+    border: 2px solid #333;
+    border-radius: 10px;
+    padding: 12px 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.5), inset 0 0 20px rgba(0,0,0,0.3);
+    width: 80px;
+  }
+
+  .traffic-signal .light {
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.05);
+    border: 2px solid rgba(255,255,255,0.1);
+    position: relative;
+    transition: all 0.4s;
+  }
+
+  .traffic-signal .light::after {
+    content: '';
+    position: absolute;
+    top: 4px; left: 4px;
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.15);
+  }
+
+  .traffic-signal .light.red.on {
+    background: var(--red);
+    box-shadow: 0 0 20px var(--red), 0 0 40px rgba(255,51,51,0.4);
+    border-color: rgba(255,100,100,0.5);
+  }
+
+  .traffic-signal .light.yellow.on {
+    background: var(--yellow);
+    box-shadow: 0 0 20px var(--yellow), 0 0 40px rgba(255,200,0,0.4);
+    border-color: rgba(255,220,100,0.5);
+  }
+
+  .traffic-signal .light.green.on {
+    background: var(--green);
+    box-shadow: 0 0 20px var(--green), 0 0 40px rgba(0,255,136,0.4);
+    border-color: rgba(100,255,160,0.5);
+  }
+
+  .traffic-signal .light.blue.on {
+    background: var(--blue-signal);
+    box-shadow: 0 0 20px var(--blue-signal), 0 0 40px rgba(68,136,255,0.6);
+    border-color: rgba(100,160,255,0.5);
+    animation: blueFlash 0.8s ease-in-out infinite;
+  }
+
+  @keyframes blueFlash {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+  }
+
+  .traffic-signal .light.red.blink { animation: signalBlink 0.2s ease-in-out infinite; }
+  .traffic-signal .light.yellow.blink { animation: signalBlink 0.2s ease-in-out infinite 0.1s; }
+
+  @keyframes signalBlink {
+    0%, 100% { opacity: 1; background: var(--red); box-shadow: 0 0 20px var(--red); }
+    50% { opacity: 0.1; background: rgba(255,51,51,0.2); box-shadow: none; }
+  }
+
+  .signal-dir-label {
+    font-family: 'Orbitron', monospace;
+    font-size: 9px;
+    color: rgba(0,212,255,0.7);
+    letter-spacing: 1px;
+    text-align: center;
+  }
+
+  .timer-display {
+    font-family: 'Orbitron', monospace;
+    font-size: 22px;
+    font-weight: 900;
+    color: var(--green);
+    text-shadow: 0 0 10px var(--green);
+    text-align: center;
+  }
+
+  .timer-label {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 9px;
+    color: rgba(0,212,255,0.4);
+    letter-spacing: 2px;
+    text-align: center;
+  }
+
+  /* Direction labels around signal */
+  .signal-directions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    width: 100%;
+  }
+
+  .dir-chip {
+    background: rgba(0,20,50,0.8);
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    padding: 5px 6px;
+    text-align: center;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 9px;
+  }
+
+  .dir-chip.active-green { border-color: var(--green); color: var(--green); }
+  .dir-chip.active-red { border-color: var(--red); color: var(--red); }
+  .dir-chip.active-blue { border-color: var(--blue-signal); color: var(--blue-signal); }
+
+  /* ===== CHARTS ===== */
+  .charts-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-top: 12px;
+  }
+</style>
+</head>
+<body>
+
+<!-- ===== SIDEBAR ===== -->
+<div class="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-icon">
+      <svg width="22" height="22" viewBox="0 0 44 44" fill="none">
+        <circle cx="22" cy="22" r="20" stroke="#00d4ff" stroke-width="1.5" opacity="0.5"/>
+        <path d="M22 8L24.2 16.4H33L26.4 21.6L28.6 30L22 24.8L15.4 30L17.6 21.6L11 16.4H19.8L22 8Z" fill="#00d4ff" opacity="0.9"/>
+      </svg>
+    </div>
+    <div class="logo-text">SMART TRAFFIC<br>CONTROL UNIT</div>
+  </div>
+
+  <div class="nav-section">
+    <div class="nav-label">MAIN</div>
+    <a class="nav-item active" onclick="showPage('dashboard')" href="#">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+      DASHBOARD
+    </a>
+    <a class="nav-item" onclick="showPage('liveSignal')" href="#">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M6.3 6.3a8 8 0 0 0 0 11.4M17.7 6.3a8 8 0 0 1 0 11.4M3 3l18 18"/></svg>
+      LIVE SIGNAL
+    </a>
+    <a class="nav-item" onclick="showPage('vehicleCount')" href="#">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 3h15v13H1zM16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+      VEHICLE COUNT
+    </a>
+
+    <div class="nav-label" style="margin-top:12px">ANALYSIS</div>
+    <a class="nav-item" href="#">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+      ANALYTICS
+    </a>
+    <a class="nav-item" href="#">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+      REPORTS
+    </a>
+    <a class="nav-item" href="#">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
+      LIVE MAP
+    </a>
+
+    <div class="nav-label" style="margin-top:12px">SYSTEM</div>
+    <a class="nav-item" href="#">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      SETTINGS
+    </a>
+    <a class="nav-item" onclick="showPage('profile')" href="#">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      MY PROFILE
+    </a>
+  </div>
+
+  <div class="sidebar-bottom">
+    <div class="officer-mini" onclick="showPage('profile')">
+      <div class="officer-avatar" id="sidebarInitial">-</div>
+      <div class="officer-info">
+        <div class="officer-name-mini" id="sidebarName">OFFICER</div>
+        <div class="officer-rank" id="sidebarBatch">BATCH: ---</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MAIN ===== -->
+<div class="main-area">
+  <!-- Topbar -->
+  <div class="topbar">
+    <div class="topbar-title">SMART TRAFFIC CONTROL <span>| COMMAND DASHBOARD</span></div>
+    <div class="topbar-status"><div class="status-dot"></div> LIVE · ALL SYSTEMS NOMINAL</div>
+    <div class="topbar-time" id="topbarTime">00:00:00</div>
+    <div class="topbar-icons">
+      <div class="icon-btn" style="position:relative">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        <div class="notif-badge" id="notifBadge">3</div>
+      </div>
+      <div class="icon-btn" onclick="window.location.href='login.html'">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      </div>
+    </div>
+  </div>
+
+  <!-- Content -->
+  <div class="content">
+
+    <!-- ====== DASHBOARD PAGE ====== -->
+    <div id="dashboardPage" class="page active">
+      <!-- Stats -->
+      <div class="stat-grid">
+        <div class="stat-card blue">
+          <div class="stat-label">TOTAL VEHICLES TODAY</div>
+          <div class="stat-value" id="statTotal">4,821</div>
+          <div class="stat-sub">↑ 12.4% from yesterday</div>
+        </div>
+        <div class="stat-card green">
+          <div class="stat-label">ACTIVE CAMERAS</div>
+          <div class="stat-value">4 / 4</div>
+          <div class="stat-sub">ALL ONLINE</div>
+        </div>
+        <div class="stat-card red">
+          <div class="stat-label">ALERTS TODAY</div>
+          <div class="stat-value" id="statAlerts">7</div>
+          <div class="stat-sub">3 critical, 4 warnings</div>
+        </div>
+        <div class="stat-card gold">
+          <div class="stat-label">AVG SIGNAL TIME</div>
+          <div class="stat-value">32s</div>
+          <div class="stat-sub">Optimized by AI</div>
+        </div>
+      </div>
+
+      <!-- 3-col layout -->
+      <div style="display:grid;grid-template-columns:240px 1fr 240px;gap:12px">
+
+        <!-- Left: Alerts + Signal Status -->
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <div class="panel">
+            <div class="panel-header">
+              <div class="panel-title">⚠ SYSTEM ALERTS</div>
+              <div class="panel-dots">···</div>
+            </div>
+            <div class="alert-list" id="alertList">
+              <div class="alert-item critical">🚨 CRITICAL: AMBULANCE DETECTED · JUNCTION-A · NORTH BOUND</div>
+              <div class="alert-item warning">⚠ HIGH TRAFFIC: EAST AVENUE 03 · VEHICLES: 28</div>
+              <div class="alert-item info">ℹ SIGNAL OPTIMIZED · SOUTH ROAD · +15s GREEN</div>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-header">
+              <div class="panel-title">🚦 SIGNAL STATUS</div>
+            </div>
+            <div class="signal-status-grid">
+              <div class="signal-row" id="sigNorth">
+                <div class="signal-dir">NORTH</div>
+                <div class="mini-signal">
+                  <div class="mini-light red" id="sigN_R"></div>
+                  <div class="mini-light yellow" id="sigN_Y"></div>
+                  <div class="mini-light green" id="sigN_G"></div>
+                  <div class="mini-light blue" id="sigN_B"></div>
+                </div>
+                <div class="signal-label" id="sigN_lbl">RED</div>
+              </div>
+              <div class="signal-row">
+                <div class="signal-dir">SOUTH</div>
+                <div class="mini-signal">
+                  <div class="mini-light red on"></div>
+                  <div class="mini-light yellow"></div>
+                  <div class="mini-light green"></div>
+                  <div class="mini-light blue"></div>
+                </div>
+                <div class="signal-label">RED: 18s</div>
+              </div>
+              <div class="signal-row">
+                <div class="signal-dir">EAST</div>
+                <div class="mini-signal">
+                  <div class="mini-light red on"></div>
+                  <div class="mini-light yellow"></div>
+                  <div class="mini-light green"></div>
+                  <div class="mini-light blue"></div>
+                </div>
+                <div class="signal-label">RED: 22s</div>
+              </div>
+              <div class="signal-row">
+                <div class="signal-dir">WEST</div>
+                <div class="mini-signal">
+                  <div class="mini-light red"></div>
+                  <div class="mini-light yellow"></div>
+                  <div class="mini-light green on"></div>
+                  <div class="mini-light blue"></div>
+                </div>
+                <div class="signal-label">GREEN: 12s</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Center: CCTV + Charts -->
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <!-- Alert strip -->
+          <div class="alert-strip ambulance" id="alertStrip">
+            <span style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4488ff">🔵</span>
+            <div class="alert-text" id="alertStripText">!!! EMERGENCY AMBULANCE DETECTED (NORTH BOUND) !!!</div>
+            <span style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4488ff">🔵</span>
+          </div>
+
+          <!-- CCTV Grid -->
+          <div class="panel">
+            <div class="panel-header">
+              <div class="panel-title">📹 LIVE CCTV FEEDS</div>
+              <div class="panel-dots" style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#00ff88">● LIVE</div>
+            </div>
+            <div class="cctv-grid">
+              <!-- CAM 1: Ambulance -->
+              <div class="cam-card" onclick="openCamera(0)">
+                <video class="cam-video" autoplay muted loop playsinline src="videos/ambulance.mp4"></video>
+                <div class="cam-overlay">
+                  <div class="cam-name">NORTH GATEWAY 01</div>
+                  <div class="cam-count">CAM 01 · 18 VEHICLES</div>
+                </div>
+                <div class="cam-bottom">NORTH GATEWAY 01</div>
+                <div class="detect-badge ambulance">AMBULANCE</div>
+              </div>
+              <!-- CAM 2: Normal -->
+              <div class="cam-card" onclick="openCamera(1)">
+                <video class="cam-video" autoplay muted loop playsinline src="videos/traffic.mp4"></video>
+                <div class="cam-overlay">
+                  <div class="cam-name">SOUTH INTERSECTION 02</div>
+                  <div class="cam-count">CAM 02 · 24 VEHICLES</div>
+                </div>
+                <div class="cam-bottom">SOUTH INTERSECTION 02</div>
+              </div>
+              <!-- CAM 3: Accident -->
+              <div class="cam-card" onclick="openCamera(2)">
+                <video class="cam-video" autoplay muted loop playsinline src="videos/accident.mp4"></video>
+                <div class="cam-overlay">
+                  <div class="cam-name">EAST AVENUE 03</div>
+                  <div class="cam-count">CAM 03 · 12 VEHICLES</div>
+                </div>
+                <div class="cam-bottom">EAST AVENUE 03</div>
+                <div class="detect-badge accident">⚠ INCIDENT</div>
+              </div>
+              <!-- CAM 4: Bus -->
+              <div class="cam-card" onclick="openCamera(3)">
+                <video class="cam-video" autoplay muted loop playsinline src="videos/bus.mp4"></video>
+                <div class="cam-overlay">
+                  <div class="cam-name">WEST ROAD 04</div>
+                  <div class="cam-count">CAM 04 · 29 VEHICLES</div>
+                </div>
+                <div class="cam-bottom">WEST ROAD 04</div>
+                <div class="detect-badge bus">🚌 PUBLIC TRANSPORT</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Charts row -->
+          <div class="charts-row">
+            <div class="panel" style="padding:12px">
+              <div class="panel-title" style="margin-bottom:8px">TRAFFIC DENSITY (1HR)</div>
+              <canvas id="densityChart" height="100"></canvas>
+            </div>
+            <div class="panel" style="padding:12px">
+              <div class="panel-title" style="margin-bottom:8px">VEHICLE MIX</div>
+              <canvas id="mixChart" height="100"></canvas>
+            </div>
+            <div class="panel" style="padding:12px">
+              <div class="panel-title" style="margin-bottom:8px">AVG SPEED</div>
+              <canvas id="speedChart" height="100"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: AI Alerts + Log -->
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <div class="panel">
+            <div class="panel-header">
+              <div class="panel-title">🤖 AI SYSTEM ALERTS</div>
+              <div class="panel-dots">···</div>
+            </div>
+            <div class="alert-list">
+              <div class="alert-item critical">🚑 AMBULANCE DETECTED | NORTH GATE · BLUE SIGNAL ACTIVE</div>
+              <div class="alert-item critical">⚠ ACCIDENT | EAST AVE 03 · SIGNAL BLINKING RAPIDLY</div>
+              <div class="alert-item warning">🚌 PUBLIC TRANSPORT | WEST RD 04 · +15s GREEN EXTENDED</div>
+            </div>
+          </div>
+
+          <div class="panel" style="flex:1">
+            <div class="panel-header">
+              <div class="panel-title">AI DETECTION LOG</div>
+            </div>
+            <div style="padding:8px;overflow-y:auto;max-height:200px">
+              <table class="log-table">
+                <thead>
+                  <tr><th>TIME</th><th>CAMERA</th><th>TYPE</th><th>ACTION</th></tr>
+                </thead>
+                <tbody id="logTableBody">
+                  <tr><td>09:42 AM</td><td>CAM 01</td><td style="color:#4488ff">AMBULANCE</td><td>BLUE SIGNAL</td></tr>
+                  <tr><td>09:41 AM</td><td>CAM 03</td><td style="color:#ff3333">ACCIDENT</td><td>BLINK+ALERT</td></tr>
+                  <tr><td>09:40 AM</td><td>CAM 04</td><td style="color:#00ff88">BUS</td><td>+15s GREEN</td></tr>
+                  <tr><td>09:38 AM</td><td>CAM 02</td><td style="color:#aaa">NORMAL</td><td>STANDARD</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ====== LIVE SIGNAL PAGE ====== -->
+    <div id="liveSignalPage" class="page">
+      <div style="margin-bottom:12px;font-family:'Share Tech Mono',monospace;font-size:11px;color:rgba(0,212,255,0.6);letter-spacing:2px">LIVE SIGNAL STATUS · CLICK ANY CAMERA TO EXPAND WITH AI DETECTION</div>
+      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:16px">
+        <div class="cam-card" style="aspect-ratio:16/9" onclick="openCamera(0)">
+          <video class="cam-video" autoplay muted loop playsinline src='videos/ambulance.mp4'></video>
+          <div class="cam-overlay"><div class="cam-name">CAM 01 · NORTH GATEWAY</div><div class="cam-count">🔵 AMBULANCE</div></div>
+          <div class="detect-badge ambulance">AMBULANCE DETECTED</div>
+        </div>
+        <div class="cam-card" style="aspect-ratio:16/9" onclick="openCamera(1)">
+          <video class="cam-video" autoplay muted loop playsinline src='videos/traffic.mp4'></video>
+          <div class="cam-overlay"><div class="cam-name">CAM 02 · SOUTH INTERSECTION</div><div class="cam-count">🟢 NORMAL</div></div>
+        </div>
+        <div class="cam-card" style="aspect-ratio:16/9" onclick="openCamera(2)">
+          <video class="cam-video" autoplay muted loop playsinline src='videos/accident.mp4'></video>
+          <div class="cam-overlay"><div class="cam-name">CAM 03 · EAST AVENUE</div><div class="cam-count">🔴 INCIDENT</div></div>
+          <div class="detect-badge accident">⚠ ACCIDENT</div>
+        </div>
+        <div class="cam-card" style="aspect-ratio:16/9" onclick="openCamera(3)">
+          <video class="cam-video" autoplay muted loop playsinline src='videos/bus.mp4'></video>
+          <div class="cam-overlay"><div class="cam-name">CAM 04 · WEST ROAD</div><div class="cam-count">🚌 PUBLIC TRANSPORT</div></div>
+          <div class="detect-badge bus">🚌 BUS</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ====== VEHICLE COUNT PAGE ====== -->
+    <div id="vehicleCountPage" class="page">
+      <div style="margin-bottom:12px;font-family:'Share Tech Mono',monospace;font-size:11px;color:rgba(0,212,255,0.6);letter-spacing:2px">REAL-TIME VEHICLE COUNT · ALL DIRECTIONS · JUNCTION-A</div>
+      <div class="panel" style="padding:16px;margin-bottom:16px">
+        <div style="position:relative;height:500px">
+          <canvas id="roadMapCanvas"></canvas>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px">
+        <div class="stat-card blue">
+          <div class="stat-label">NORTH BOUND</div>
+          <div class="stat-value" id="vcNorth">18</div>
+          <div class="stat-sub" id="vcNorthSub">VEHICLES · LIVE</div>
+        </div>
+        <div class="stat-card green">
+          <div class="stat-label">SOUTH BOUND</div>
+          <div class="stat-value" id="vcSouth">12</div>
+          <div class="stat-sub">VEHICLES · LIVE</div>
+        </div>
+        <div class="stat-card red">
+          <div class="stat-label">EAST BOUND</div>
+          <div class="stat-value" id="vcEast">24</div>
+          <div class="stat-sub">VEHICLES · LIVE</div>
+        </div>
+        <div class="stat-card gold">
+          <div class="stat-label">WEST BOUND</div>
+          <div class="stat-value" id="vcWest">29</div>
+          <div class="stat-sub">VEHICLES · LIVE</div>
+        </div>
+      </div>
+      <div class="panel" style="margin-top:16px;padding:16px">
+        <div class="panel-title" style="margin-bottom:12px">VEHICLE FLOW OVER TIME (LAST 30 MIN)</div>
+        <canvas id="flowChart" height="120"></canvas>
+      </div>
+    </div>
+
+    <!-- ====== PROFILE PAGE ====== -->
+    <div id="profilePage" class="page">
+      <div class="profile-grid">
+        <div class="profile-card">
+          <div class="profile-avatar" id="profileInitial">?</div>
+          <div class="profile-name" id="profileName">OFFICER NAME</div>
+          <div class="profile-rank">TRAFFIC CONTROL UNIT</div>
+          <div class="profile-badge-display">
+            <div class="badge-num" id="profileBatch">---</div>
+            <div class="badge-label">BATCH / SERVICE NUMBER</div>
+          </div>
+          <div class="profile-info-row">
+            <div class="profile-info-label">AREA / ZONE</div>
+            <div class="profile-info-val" id="profileArea">---</div>
+          </div>
+          <div class="profile-info-row">
+            <div class="profile-info-label">LOGIN TIME</div>
+            <div class="profile-info-val" id="profileLogin">---</div>
+          </div>
+          <div class="profile-info-row">
+            <div class="profile-info-label">DEPARTMENT</div>
+            <div class="profile-info-val">STATE TRAFFIC UNIT</div>
+          </div>
+          <div class="profile-info-row">
+            <div class="profile-info-label">CLEARANCE</div>
+            <div class="profile-info-val" style="color:var(--green)">LEVEL 2 ACCESS</div>
+          </div>
+          <div class="status-online"><div class="status-dot" style="width:8px;height:8px"></div> DUTY ACTIVE</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:16px">
+          <div class="panel" style="padding:20px">
+            <div class="panel-title" style="margin-bottom:16px">DUTY STATISTICS</div>
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px">
+              <div class="stat-card blue"><div class="stat-label">SHIFT DURATION</div><div class="stat-value" id="shiftDuration">--:--</div><div class="stat-sub">HRS:MIN</div></div>
+              <div class="stat-card green"><div class="stat-label">ALERTS HANDLED</div><div class="stat-value">7</div><div class="stat-sub">THIS SHIFT</div></div>
+              <div class="stat-card gold"><div class="stat-label">CAMS MONITORED</div><div class="stat-value">4</div><div class="stat-sub">ALL ACTIVE</div></div>
+            </div>
+          </div>
+          <div class="panel" style="padding:20px">
+            <div class="panel-title" style="margin-bottom:16px">RECENT ACTIVITY</div>
+            <table class="log-table">
+              <thead><tr><th>TIME</th><th>ACTION</th><th>CAMERA</th><th>STATUS</th></tr></thead>
+              <tbody>
+                <tr><td id="actTime1">--:--</td><td>Dashboard Login</td><td>—</td><td style="color:var(--green)">SUCCESS</td></tr>
+                <tr><td>09:42 AM</td><td>Ambulance Alert Acknowledged</td><td>CAM 01</td><td style="color:var(--neon-blue)">ACTIVE</td></tr>
+                <tr><td>09:41 AM</td><td>Accident Signal Override</td><td>CAM 03</td><td style="color:var(--yellow)">PENDING</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="panel" style="padding:20px">
+            <div class="panel-title" style="margin-bottom:12px">AREA OVERVIEW · <span id="profileAreaTitle" style="color:#fff">---</span></div>
+            <canvas id="areaChart" height="100"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+</div><!-- /main-area -->
+
+<!-- ===== CAMERA MODAL ===== -->
+<div class="modal-overlay" id="camModal">
+  <div class="modal-box">
+    <button class="modal-close" onclick="closeCamera()">✕</button>
+
+    <!-- LED Display -->
+    <div class="led-display" id="ledDisplay">
+      <div class="led-label">▶ LED</div>
+      <div class="led-text" id="ledText">JUNCTION-A · TRAFFIC CONTROL ACTIVE · MONITORING ALL DIRECTIONS</div>
+    </div>
+
+    <div class="modal-content">
+      <!-- Video -->
+      <div class="modal-video-wrap">
+        <video id="modalVideo" class="modal-video" autoplay muted loop playsinline></video>
+        <div class="modal-detection-overlay">
+          <div id="detectionBox" class="detection-box">
+            <span id="detectionLabel">DETECTED</span>
+          </div>
+        </div>
+        <!-- Camera info overlay -->
+        <div style="position:absolute;bottom:0;left:0;right:0;background:linear-gradient(0deg,rgba(0,0,0,0.8),transparent);padding:12px 16px">
+          <div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--neon-blue);letter-spacing:2px" id="modalCamName">CAMERA</div>
+          <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:rgba(255,255,255,0.5)" id="modalCamInfo">VEHICLES: --</div>
+        </div>
+        <!-- Confidence -->
+        <div style="position:absolute;top:12px;left:12px;background:rgba(0,0,0,0.7);border:1px solid var(--border);padding:6px 10px;border-radius:2px">
+          <div style="font-family:'Share Tech Mono',monospace;font-size:9px;color:rgba(0,212,255,0.6)">AI CONFIDENCE</div>
+          <div style="font-family:'Orbitron',monospace;font-size:14px;font-weight:700;color:var(--green)" id="aiConf">94.7%</div>
+        </div>
+      </div>
+
+      <!-- Signal Panel -->
+      <div class="signal-panel">
+        <div class="signal-panel-title">TRAFFIC SIGNAL</div>
+
+        <div class="traffic-signal">
+          <div class="light red" id="sigRed"></div>
+          <div class="light yellow" id="sigYellow"></div>
+          <div class="light green" id="sigGreen"></div>
+          <div class="light blue" id="sigBlue"></div>
+        </div>
+
+        <div>
+          <div class="timer-display" id="sigTimer">30</div>
+          <div class="timer-label">SECONDS</div>
+        </div>
+
+        <div style="font-family:'Share Tech Mono',monospace;font-size:9px;color:rgba(0,212,255,0.5);text-align:center;letter-spacing:1px" id="sigStatus">STANDARD CYCLE</div>
+
+        <div class="signal-directions">
+          <div class="dir-chip" id="dirN">N</div>
+          <div class="dir-chip" id="dirS">S</div>
+          <div class="dir-chip" id="dirE">E</div>
+          <div class="dir-chip" id="dirW">W</div>
+        </div>
+
+        <div style="width:100%;border-top:1px solid var(--border);padding-top:12px">
+          <div style="font-family:'Share Tech Mono',monospace;font-size:9px;color:rgba(0,212,255,0.5);margin-bottom:6px">DETECTION TYPE</div>
+          <div style="font-family:'Orbitron',monospace;font-size:11px;font-weight:700;color:#fff;letter-spacing:1px" id="detTypeLabel">NORMAL TRAFFIC</div>
+        </div>
+
+        <div style="width:100%">
+          <div style="font-family:'Share Tech Mono',monospace;font-size:9px;color:rgba(0,212,255,0.5);margin-bottom:4px">VEHICLES</div>
+          <div style="font-family:'Orbitron',monospace;font-size:20px;font-weight:900;color:var(--neon-blue)" id="modalVehicleCount">--</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ===== CAMERA DATA =====
+const cameras = [
+  {
+    name: 'NORTH GATEWAY 01',
+    src: 'videos/ambulance.mp4',
+    type: 'ambulance',
+    direction: 'NORTH',
+    vehicles: 18,
+    conf: '96.3%'
+  },
+  {
+    name: 'SOUTH INTERSECTION 02',
+    src: 'videos/traffic.mp4',
+    type: 'normal',
+    direction: 'SOUTH',
+    vehicles: 24,
+    conf: '91.2%'
+  },
+  {
+    name: 'EAST AVENUE 03',
+    src: 'videos/accident.mp4',
+    type: 'accident',
+    direction: 'EAST',
+    vehicles: 12,
+    conf: '98.7%'
+  },
+  {
+    name: 'WEST ROAD 04',
+    src: 'videos/bus.mp4',
+    type: 'bus',
+    direction: 'WEST',
+    vehicles: 29,
+    conf: '94.7%'
+  }
+];
+
+let timerInterval = null;
+let timerVal = 30;
+
+function openCamera(idx) {
+  const cam = cameras[idx];
+  const modal = document.getElementById('camModal');
+  const video = document.getElementById('modalVideo');
+  const ledText = document.getElementById('ledText');
+  const ledDisplay = document.getElementById('ledDisplay');
+  const detBox = document.getElementById('detectionBox');
+  const detLabel = document.getElementById('detectionLabel');
+  const sigRed = document.getElementById('sigRed');
+  const sigYellow = document.getElementById('sigYellow');
+  const sigGreen = document.getElementById('sigGreen');
+  const sigBlue = document.getElementById('sigBlue');
+  const sigStatus = document.getElementById('sigStatus');
+  const detTypeLabel = document.getElementById('detTypeLabel');
+
+  // Reset
+  [sigRed, sigYellow, sigGreen, sigBlue].forEach(l => l.className = 'light ' + l.id.replace('sig','').toLowerCase());
+  detBox.className = 'detection-box';
+  ['dirN','dirS','dirE','dirW'].forEach(id => document.getElementById(id).className = 'dir-chip');
+
+  video.src = cam.src;
+  video.load(); 
+  video.play().catch(e => console.log("Playback failed:", e));
+  document.getElementById('modalCamName').textContent = cam.name;
+  document.getElementById('modalCamInfo').textContent = `VEHICLES DETECTED: ${cam.vehicles} | DIRECTION: ${cam.direction}`;
+  document.getElementById('aiConf').textContent = cam.conf;
+  document.getElementById('modalVehicleCount').textContent = cam.vehicles;
+
+  clearInterval(timerInterval);
+
+  const dirMap = { NORTH: 'dirN', SOUTH: 'dirS', EAST: 'dirE', WEST: 'dirW' };
+  const activeDir = dirMap[cam.direction];
+
+  switch (cam.type) {
+    case 'ambulance':
+      sigBlue.classList.add('on');
+      sigRed.classList.add('on');
+      ledText.textContent = `🚑 EMERGENCY! AMBULANCE DETECTED · ${cam.direction} BOUND · BLUE SIGNAL ACTIVE · CLEAR PATH IMMEDIATELY`;
+      ledText.className = 'led-text ambulance';
+      ledDisplay.style.background = '#000510';
+      detBox.className = 'detection-box ambulance';
+      detLabel.textContent = '🚑 AMBULANCE';
+      sigStatus.textContent = 'EMERGENCY PRIORITY';
+      sigStatus.style.color = '#4488ff';
+      detTypeLabel.textContent = '🚑 AMBULANCE';
+      detTypeLabel.style.color = '#4488ff';
+      document.getElementById(activeDir).className = 'dir-chip active-blue';
+      timerVal = 18;
+      break;
+
+    case 'accident':
+      sigRed.classList.add('on', 'blink');
+      sigYellow.classList.add('on', 'blink');
+      ledText.textContent = `⚠ ACCIDENT DETECTED! ${cam.direction} ROAD · SIGNAL FLASHING RAPIDLY · EMERGENCY SERVICES NOTIFIED`;
+      ledText.className = 'led-text accident';
+      ledDisplay.style.background = '#100000';
+      detBox.className = 'detection-box accident';
+      detLabel.textContent = '⚠ ACCIDENT';
+      sigStatus.textContent = 'RAPID BLINK ACTIVE';
+      sigStatus.style.color = '#ff3333';
+      detTypeLabel.textContent = '⚠ ACCIDENT';
+      detTypeLabel.style.color = '#ff3333';
+      document.getElementById(activeDir).className = 'dir-chip active-red';
+      timerVal = 0;
+      break;
+
+    case 'bus':
+      sigGreen.classList.add('on');
+      ledText.textContent = `🚌 PUBLIC TRANSPORT DETECTED · ${cam.direction} BOUND · GREEN SIGNAL EXTENDED +15 SECONDS`;
+      ledText.className = 'led-text bus';
+      ledDisplay.style.background = '#001005';
+      detBox.className = 'detection-box bus';
+      detLabel.textContent = '🚌 PUBLIC TRANSPORT';
+      sigStatus.textContent = '+15s GREEN EXTENDED';
+      sigStatus.style.color = '#00ff88';
+      detTypeLabel.textContent = '🚌 PUBLIC TRANSPORT';
+      detTypeLabel.style.color = '#00ff88';
+      document.getElementById(activeDir).className = 'dir-chip active-green';
+      timerVal = 45;
+      break;
+
+    default: // normal
+      sigGreen.classList.add('on');
+      ledText.textContent = `JUNCTION-A · ${cam.direction} BOUND · NORMAL TRAFFIC FLOW · GREEN SIGNAL ACTIVE · ${cam.vehicles} VEHICLES DETECTED`;
+      ledText.className = 'led-text normal';
+      ledDisplay.style.background = '#000';
+      sigStatus.textContent = 'STANDARD CYCLE';
+      sigStatus.style.color = 'rgba(0,212,255,0.5)';
+      detTypeLabel.textContent = 'NORMAL TRAFFIC';
+      detTypeLabel.style.color = '#fff';
+      document.getElementById(activeDir).className = 'dir-chip active-green';
+      timerVal = 30;
+      break;
+  }
+
+  document.getElementById('sigTimer').textContent = timerVal;
+  if (cam.type !== 'accident') {
+    timerInterval = setInterval(() => {
+      if (timerVal > 0) {
+        timerVal--;
+        document.getElementById('sigTimer').textContent = timerVal;
+      } else {
+        clearInterval(timerInterval);
+      }
+    }, 1000);
+  }
+
+  modal.classList.add('open');
+}
+
+function closeCamera() {
+  document.getElementById('camModal').classList.remove('open');
+  document.getElementById('modalVideo').pause();
+  clearInterval(timerInterval);
+}
+
+// ===== NAVIGATION =====
+function showPage(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+
+  document.getElementById(page + 'Page').classList.add('active');
+
+  const navMap = { dashboard: 0, liveSignal: 1, vehicleCount: 2, profile: 8 };
+  const navItems = document.querySelectorAll('.nav-item');
+  const idx = { dashboard: 0, liveSignal: 1, vehicleCount: 2, profile: navItems.length - 1 };
+  if (navItems[idx[page]]) navItems[idx[page]].classList.add('active');
+
+  if (page === 'vehicleCount') initRoadMap();
+  if (page === 'profile') initProfile();
+}
+
+// ===== CLOCK =====
+function updateClock() {
+  const now = new Date();
+  document.getElementById('topbarTime').textContent = now.toLocaleTimeString('en-IN', { hour12: false });
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// ===== OFFICER DATA =====
+function loadOfficerData() {
+  let officer = { name: 'OFFICER NAME', batch: 'TN-001', area: 'JUNCTION-A', loginTime: new Date().toISOString() };
+  try {
+    const stored = localStorage.getItem('officer');
+    if (stored) officer = JSON.parse(stored);
+  } catch(e) {}
+
+  const initial = (officer.name || 'O').charAt(0).toUpperCase();
+  const shortName = (officer.name || 'OFFICER').toUpperCase().split(' ').slice(0,2).join(' ');
+
+  document.getElementById('sidebarInitial').textContent = initial;
+  document.getElementById('sidebarName').textContent = shortName;
+  document.getElementById('sidebarBatch').textContent = 'BATCH: ' + (officer.batch || '---');
+
+  return officer;
+}
+
+function initProfile() {
+  const officer = loadOfficerData();
+  document.getElementById('profileInitial').textContent = (officer.name || 'O').charAt(0).toUpperCase();
+  document.getElementById('profileName').textContent = (officer.name || 'OFFICER').toUpperCase();
+  document.getElementById('profileBatch').textContent = officer.batch || '---';
+  document.getElementById('profileArea').textContent = (officer.area || '---').toUpperCase();
+  document.getElementById('profileAreaTitle').textContent = (officer.area || '---').toUpperCase();
+
+  const loginTime = officer.loginTime ? new Date(officer.loginTime).toLocaleTimeString('en-IN') : '---';
+  document.getElementById('profileLogin').textContent = loginTime;
+  document.getElementById('actTime1').textContent = loginTime;
+
+  // Shift duration
+  if (officer.loginTime) {
+    const diff = Math.floor((Date.now() - new Date(officer.loginTime)) / 60000);
+    const h = Math.floor(diff / 60).toString().padStart(2, '0');
+    const m = (diff % 60).toString().padStart(2, '0');
+    document.getElementById('shiftDuration').textContent = `${h}:${m}`;
+  }
+
+  // Area chart
+  const ctx = document.getElementById('areaChart').getContext('2d');
+  if (window._areaChart) window._areaChart.destroy();
+  window._areaChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: ['06:00','08:00','10:00','12:00','14:00','16:00','18:00'],
+      datasets: [{
+        label: 'Traffic Density',
+        data: [20,80,150,200,180,220,190],
+        borderColor: '#00d4ff',
+        backgroundColor: 'rgba(0,212,255,0.1)',
+        fill: true,
+        tension: 0.4,
+        pointRadius: 3,
+        pointBackgroundColor: '#00d4ff'
+      }]
+    },
+    options: { responsive: true, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: 'rgba(0,212,255,0.5)', font: { family: 'Share Tech Mono', size: 9 } }, grid: { color: 'rgba(0,212,255,0.05)' } }, y: { ticks: { color: 'rgba(0,212,255,0.5)', font: { family: 'Share Tech Mono', size: 9 } }, grid: { color: 'rgba(0,212,255,0.05)' } } } }
+  });
+}
+
+// ===== CHARTS =====
+function initCharts() {
+  const chartDefaults = {
+    responsive: true,
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { ticks: { color: 'rgba(0,212,255,0.4)', font: { family: 'Share Tech Mono', size: 8 } }, grid: { color: 'rgba(0,212,255,0.05)' } },
+      y: { ticks: { color: 'rgba(0,212,255,0.4)', font: { family: 'Share Tech Mono', size: 8 } }, grid: { color: 'rgba(0,212,255,0.05)' } }
+    }
+  };
+
+  // Density
+  new Chart(document.getElementById('densityChart'), {
+    type: 'line',
+    data: {
+      labels: ['00:00','06:00','10:00','12:00','16:00','20:00'],
+      datasets: [{ data: [20,60,200,180,220,150], borderColor: '#00ffea', backgroundColor: 'rgba(0,255,234,0.08)', fill: true, tension: 0.4, pointRadius: 2 }]
+    },
+    options: { ...chartDefaults }
+  });
+
+  // Mix (pie)
+  new Chart(document.getElementById('mixChart'), {
+    type: 'doughnut',
+    data: {
+      labels: ['Cars','2-W','Heavy'],
+      datasets: [{ data: [55, 30, 15], backgroundColor: ['#00d4ff','#ff4444','#00ff88'], borderWidth: 0 }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { display: true, position: 'bottom', labels: { color: 'rgba(255,255,255,0.5)', font: { family: 'Share Tech Mono', size: 8 }, padding: 8 } }
+      }
+    }
+  });
+
+  // Speed (gauge-like bar)
+  new Chart(document.getElementById('speedChart'), {
+    type: 'bar',
+    data: {
+      labels: ['N','S','E','W'],
+      datasets: [{ data: [34, 28, 45, 38], backgroundColor: ['#00d4ff','#00ff88','#ffcc00','#ff8800'], borderRadius: 2 }]
+    },
+    options: { ...chartDefaults, plugins: { legend: { display: false } } }
+  });
+}
+
+// ===== ROAD MAP CANVAS =====
+function initRoadMap() {
+  const canvas = document.getElementById('roadMapCanvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  canvas.width = canvas.parentElement.offsetWidth;
+  canvas.height = 500;
+
+  let vcN = 18, vcS = 12, vcE = 24, vcW = 29;
+  let vehicles = [];
+
+  // Init vehicles for each direction
+  function spawnVehicle(dir) {
+    const cx = canvas.width / 2, cy = canvas.height / 2;
+    const roadW = 60;
+    let x, y, dx, dy, color;
+    const colors = ['#00d4ff','#00ff88','#ffcc00','#ff4444','#ffffff'];
+    color = colors[Math.floor(Math.random() * colors.length)];
+    switch(dir) {
+      case 'N': x = cx + roadW/4; y = canvas.height + 10; dx = 0; dy = -(1 + Math.random()); break;
+      case 'S': x = cx - roadW/4; y = -10; dx = 0; dy = (1 + Math.random()); break;
+      case 'E': x = -10; y = cy + roadW/4; dx = (1 + Math.random()); dy = 0; break;
+      case 'W': x = canvas.width + 10; y = cy - roadW/4; dx = -(1 + Math.random()); dy = 0; break;
+    }
+    return { x, y, dx, dy, dir, color, size: 6 + Math.random() * 4, life: 0 };
+  }
+
+  // Spawn initial vehicles
+  ['N','S','E','W'].forEach(d => {
+    for (let i = 0; i < 8; i++) {
+      const v = spawnVehicle(d);
+      v.x += (Math.random() - 0.5) * 300 * (d === 'E' || d === 'W' ? 1 : 0);
+      v.y += (Math.random() - 0.5) * 300 * (d === 'N' || d === 'S' ? 1 : 0);
+      vehicles.push(v);
+    }
+  });
+
+  function drawFrame() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const cx = canvas.width / 2, cy = canvas.height / 2;
+    const roadW = 80;
+
+    // Background
+    ctx.fillStyle = '#0a1a0a';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Grid
+    ctx.strokeStyle = 'rgba(0,212,255,0.04)';
+    ctx.lineWidth = 1;
+    for (let x = 0; x < canvas.width; x += 50) {
+      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
+    }
+    for (let y = 0; y < canvas.height; y += 50) {
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
+    }
+
+    // Roads
+    ctx.fillStyle = '#1a1a2e';
+    // Vertical road
+    ctx.fillRect(cx - roadW/2, 0, roadW, canvas.height);
+    // Horizontal road
+    ctx.fillRect(0, cy - roadW/2, canvas.width, roadW);
+
+    // Road markings
+    ctx.strokeStyle = 'rgba(255,255,0,0.2)';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([20, 15]);
+    // Center vertical
+    ctx.beginPath(); ctx.moveTo(cx, 0); ctx.lineTo(cx, cy - roadW/2); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cx, cy + roadW/2); ctx.lineTo(cx, canvas.height); ctx.stroke();
+    // Center horizontal
+    ctx.beginPath(); ctx.moveTo(0, cy); ctx.lineTo(cx - roadW/2, cy); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cx + roadW/2, cy); ctx.lineTo(canvas.width, cy); ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Intersection box
+    ctx.fillStyle = '#222240';
+    ctx.fillRect(cx - roadW/2, cy - roadW/2, roadW, roadW);
+    ctx.strokeStyle = 'rgba(0,212,255,0.3)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(cx - roadW/2, cy - roadW/2, roadW, roadW);
+
+    // Junction label
+    ctx.fillStyle = 'rgba(0,212,255,0.6)';
+    ctx.font = 'bold 11px "Share Tech Mono"';
+    ctx.textAlign = 'center';
+    ctx.fillText('JUNCTION-A', cx, cy + 4);
+
+    // Direction labels
+    const labelStyle = { font: 'bold 13px "Share Tech Mono"', color: 'rgba(0,212,255,0.8)' };
+    ctx.fillStyle = labelStyle.color;
+    ctx.font = labelStyle.font;
+    ctx.fillText('NORTH', cx, 30);
+    ctx.fillText('SOUTH', cx, canvas.height - 15);
+    ctx.textAlign = 'left';
+    ctx.fillText('EAST', 10, cy);
+    ctx.textAlign = 'right';
+    ctx.fillText('WEST', canvas.width - 10, cy);
+    ctx.textAlign = 'center';
+
+    // Count boxes
+    function drawCountBox(x, y, count, dir, color) {
+      ctx.fillStyle = 'rgba(0,10,30,0.85)';
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 1.5;
+      const bw = 100, bh = 40;
+      ctx.fillRect(x - bw/2, y - bh/2, bw, bh);
+      ctx.strokeRect(x - bw/2, y - bh/2, bw, bh);
+      ctx.fillStyle = color;
+      ctx.font = 'bold 18px "Orbitron"';
+      ctx.fillText(count, x, y + 5);
+      ctx.fillStyle = 'rgba(255,255,255,0.4)';
+      ctx.font = '9px "Share Tech Mono"';
+      ctx.fillText('VEHICLES', x, y + 16);
+    }
+
+    drawCountBox(cx, 70, vcN, 'N', '#00d4ff');
+    drawCountBox(cx, canvas.height - 70, vcS, 'S', '#00ff88');
+    drawCountBox(100, cy, vcE, 'E', '#ffcc00');
+    drawCountBox(canvas.width - 100, cy, vcW, 'W', '#ff8800');
+
+    // Traffic signals at intersection corners
+    const signalPositions = [
+      { x: cx - roadW/2 - 15, y: cy - roadW/2 - 15, active: 'green' },
+      { x: cx + roadW/2 + 15, y: cy - roadW/2 - 15, active: 'red' },
+      { x: cx - roadW/2 - 15, y: cy + roadW/2 + 15, active: 'red' },
+      { x: cx + roadW/2 + 15, y: cy + roadW/2 + 15, active: 'blue' }
+    ];
+
+    signalPositions.forEach(sp => {
+      const colors = { red: '#ff3333', yellow: '#ffcc00', green: '#00ff88', blue: '#4488ff' };
+      const lights = ['red','yellow','green','blue'];
+      ctx.fillStyle = '#111';
+      ctx.fillRect(sp.x - 6, sp.y - 20, 12, 36);
+      lights.forEach((l, i) => {
+        ctx.beginPath();
+        ctx.arc(sp.x, sp.y - 15 + i * 12, 4, 0, Math.PI * 2);
+        ctx.fillStyle = l === sp.active ? colors[l] : 'rgba(255,255,255,0.1)';
+        ctx.fill();
+        if (l === sp.active) {
+          ctx.shadowBlur = 10;
+          ctx.shadowColor = colors[l];
+          ctx.fill();
+          ctx.shadowBlur = 0;
+        }
+      });
+    });
+
+    // Move & draw vehicles
+    vehicles.forEach((v, i) => {
+      v.x += v.dx;
+      v.y += v.dy;
+      v.life++;
+
+      // Remove if out of bounds
+      if (v.x < -20 || v.x > canvas.width + 20 || v.y < -20 || v.y > canvas.height + 20) {
+        vehicles[i] = spawnVehicle(v.dir);
+        return;
+      }
+
+      // Draw vehicle
+      ctx.save();
+      ctx.translate(v.x, v.y);
+      if (v.dx !== 0) ctx.rotate(v.dx > 0 ? 0 : Math.PI);
+      else ctx.rotate(v.dy > 0 ? Math.PI/2 : -Math.PI/2);
+
+      ctx.fillStyle = v.color;
+      ctx.shadowBlur = 6;
+      ctx.shadowColor = v.color;
+      ctx.fillRect(-v.size/2, -v.size/3, v.size, v.size * 0.6);
+      ctx.shadowBlur = 0;
+
+      // Headlights
+      ctx.fillStyle = 'rgba(255,255,200,0.8)';
+      ctx.fillRect(v.size/2 - 2, -v.size/3, 2, 3);
+      ctx.fillRect(v.size/2 - 2, v.size * 0.6 - 3 - v.size/3, 2, 3);
+      ctx.restore();
+    });
+
+    // Spawn new vehicles periodically
+    if (Math.random() < 0.05) {
+      const dirs = ['N','S','E','W'];
+      vehicles.push(spawnVehicle(dirs[Math.floor(Math.random() * 4)]));
+    }
+
+    // Update counts randomly
+    if (Math.random() < 0.01) {
+      vcN = Math.max(5, vcN + Math.round((Math.random() - 0.5) * 4));
+      vcS = Math.max(3, vcS + Math.round((Math.random() - 0.5) * 4));
+      vcE = Math.max(5, vcE + Math.round((Math.random() - 0.5) * 4));
+      vcW = Math.max(5, vcW + Math.round((Math.random() - 0.5) * 4));
+      document.getElementById('vcNorth').textContent = vcN;
+      document.getElementById('vcSouth').textContent = vcS;
+      document.getElementById('vcEast').textContent = vcE;
+      document.getElementById('vcWest').textContent = vcW;
+    }
+
+    requestAnimationFrame(drawFrame);
+  }
+
+  drawFrame();
+
+  // Flow chart
+  const flowCtx = document.getElementById('flowChart').getContext('2d');
+  const timeLabels = [];
+  const now = new Date();
+  for (let i = 29; i >= 0; i--) {
+    const t = new Date(now - i * 60000);
+    timeLabels.push(t.getMinutes() + ':' + t.getSeconds().toString().padStart(2,'0'));
+  }
+
+  window._flowChart = new Chart(flowCtx, {
+    type: 'line',
+    data: {
+      labels: timeLabels,
+      datasets: [
+        { label: 'North', data: Array.from({length:30}, () => 10 + Math.random()*20), borderColor: '#00d4ff', fill: false, tension: 0.4, pointRadius: 0 },
+        { label: 'South', data: Array.from({length:30}, () => 8 + Math.random()*15), borderColor: '#00ff88', fill: false, tension: 0.4, pointRadius: 0 },
+        { label: 'East', data: Array.from({length:30}, () => 15 + Math.random()*25), borderColor: '#ffcc00', fill: false, tension: 0.4, pointRadius: 0 },
+        { label: 'West', data: Array.from({length:30}, () => 12 + Math.random()*22), borderColor: '#ff8800', fill: false, tension: 0.4, pointRadius: 0 }
+      ]
+    },
+    options: {
+      responsive: true,
+      animation: false,
+      plugins: { legend: { labels: { color: 'rgba(255,255,255,0.5)', font: { family: 'Share Tech Mono', size: 9 }, padding: 12 } } },
+      scales: {
+        x: { ticks: { maxTicksLimit: 8, color: 'rgba(0,212,255,0.4)', font: { family: 'Share Tech Mono', size: 8 } }, grid: { color: 'rgba(0,212,255,0.05)' } },
+        y: { ticks: { color: 'rgba(0,212,255,0.4)', font: { family: 'Share Tech Mono', size: 8 } }, grid: { color: 'rgba(0,212,255,0.05)' } }
+      }
+    }
+  });
+
+  // Live update flow chart
+  setInterval(() => {
+    if (document.getElementById('vehicleCountPage').classList.contains('active')) {
+      window._flowChart.data.datasets.forEach(ds => {
+        ds.data.push(ds.data[ds.data.length - 1] + (Math.random() - 0.5) * 6);
+        if (ds.data.length > 30) ds.data.shift();
+      });
+      window._flowChart.update();
+    }
+  }, 2000);
+}
+
+// ===== INIT =====
+loadOfficerData();
+initCharts();
+
+// Simulate live alert cycling
+const alertTypes = ['ambulance','accident','bus','normal'];
+let alertIdx = 0;
+const alertStrip = document.getElementById('alertStrip');
+const alertStripText = document.getElementById('alertStripText');
+
+const alertMessages = {
+  ambulance: ['ambulance','!!! EMERGENCY AMBULANCE DETECTED (NORTH BOUND) !!!'],
+  accident: ['accident','⚠⚠⚠ ACCIDENT DETECTED · EAST AVENUE 03 · EMERGENCY SERVICES ALERTED ⚠⚠⚠'],
+  bus: ['','🚌 PUBLIC TRANSPORT DETECTED · WEST ROAD 04 · +15s GREEN SIGNAL EXTENDED'],
+  normal: ['','JUNCTION-A · ALL SIGNALS NOMINAL · STANDARD TRAFFIC FLOW ACTIVE']
+};
+
+// Close modal on overlay click
+document.getElementById('camModal').addEventListener('click', function(e) {
+  if (e.target === this) closeCamera();
+});
+
+// Keyboard
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeCamera();
+});
+</script>
+</body>
+</html>
